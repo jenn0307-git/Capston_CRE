@@ -1,6 +1,4 @@
 """
-OUTPUT 16 — CMBS DEFAULT PREDICTION: COMPLETE END-TO-END PIPELINE
-NYU Stern MSBAi Capstone 2026 | Jenny
 
 ═══════════════════════════════════════════════════════════════
 WHAT THIS CODE DOES (reading guide)
