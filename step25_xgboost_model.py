@@ -1,7 +1,5 @@
 """
 step25_xgboost_model.py
-CRE Loan Default Risk Prediction — Phase 2
-NYU Stern MSBAi Capstone 2026
 
 REQUIRES: step24_features.parquet (run step24 first)
 
