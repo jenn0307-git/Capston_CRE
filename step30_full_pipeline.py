@@ -602,17 +602,28 @@ def s24_engineer_features(df, macro_nat, state_macro):
     )
 
     df["ym"] = df["report_period"]
+
+    # Macro with 3-month lag: use macro data from 3 months before report_period
+    df["ym_macro"] = (
+        pd.to_datetime(df["report_period"] + "-01") - pd.DateOffset(months=3)
+    ).dt.strftime("%Y-%m")
+
     if macro_nat is not None and len(macro_nat) > 0:
-        df = df.merge(macro_nat, on="ym", how="left")
+        df = df.merge(macro_nat.rename(columns={"ym": "ym_macro"}), on="ym_macro", how="left")
     else:
         df["nat_10y_rate"] = np.nan
         df["nat_unrate"]   = np.nan
         df["nat_gdp_yoy"]  = np.nan
 
     if state_macro is not None and len(state_macro) > 0:
-        df = df.merge(state_macro, on=["ym", "state"], how="left")
+        df = df.merge(
+            state_macro.rename(columns={"ym": "ym_macro"}),
+            on=["ym_macro", "state"], how="left"
+        )
     else:
         df["state_unrate"] = np.nan
+
+    df = df.drop(columns=["ym_macro"], errors="ignore")
 
     df["year_feat"]    = pd.to_numeric(df["year"], errors="coerce")
     df["month_feat"]   = pd.to_numeric(df["month"], errors="coerce")
@@ -625,7 +636,20 @@ def s24_engineer_features(df, macro_nat, state_macro):
 
     df["macro_regime"] = df["ym"].apply(macro_regime)
     df["covid_period"] = df["ym"].apply(lambda x: 1 if "2020-03" <= x <= "2021-12" else 0)
-    df["target"] = pd.to_numeric(df["default_flag"], errors="coerce").fillna(0).astype(int)
+
+    # 6-month forward default target
+    df = df.sort_values(["ac_key", "report_period"]).copy()
+    fwd = pd.Series(0, index=df.index, dtype=float)
+    for h in range(1, 7):
+        fwd = fwd.combine(
+            df.groupby("ac_key")["default_flag"].shift(-h).fillna(0), max
+        )
+    df["target"] = fwd.astype(int)
+
+    # Drop last observation of each loan (no future data to label)
+    df["last_month"] = df.groupby("ac_key")["report_period"].transform("max")
+    df = df[df["report_period"] < df["last_month"]].drop(columns=["last_month"])
+
     return df
 
 
